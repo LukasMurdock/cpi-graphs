@@ -20,7 +20,7 @@ export default function Home() {
         <header className="py-10">
           <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
             <h1 className="text-3xl font-bold text-white">
-              Consumer Price Index (CPI) Data
+              Consumer Price Index (CPI) Charts
             </h1>
             <p className="text-gray-400">Last updated: August 7, 2021</p>
           </div>
