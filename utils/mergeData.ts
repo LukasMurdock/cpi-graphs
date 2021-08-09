@@ -4,12 +4,12 @@ import mergeByProperty from './mergeByProperty';
 
 const mergeData = ({
   outputFile,
-  joinFiles,
+  joinFile,
   initialFile
 }: {
   outputFile: string;
   initialFile: string;
-  joinFiles: { source: string; joinProp: string }[];
+  joinFile: { source: string; joinProp: string }[];
 }) => {
   const outputPath = path.join(process.cwd(), '/public/data/' + outputFile);
   const initialDataFilepath = path.join(
@@ -23,7 +23,7 @@ const mergeData = ({
   fs.writeFileSync(outputPath, initialData);
   console.log('Merge Status: Initial file created: ' + outputFile);
 
-  joinFiles.forEach((file) => {
+  joinFile.forEach((file) => {
     const joinFilepath = path.join(
       process.cwd(),
       '/public/data/' + file.source

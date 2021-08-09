@@ -19,7 +19,9 @@ const mergeByProperty = (target: object[], source: object[], prop: string) => {
     let sourceElement = source.find((sourceElement: any) => {
       return targetElement[prop] === sourceElement[prop];
     });
-    sourceElement && Object.assign(targetElement, sourceElement);
+    sourceElement
+      ? Object.assign(targetElement, sourceElement)
+      : source.push(targetElement);
   });
 };
 

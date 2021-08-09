@@ -9,6 +9,9 @@ import Table from '@/components/Table';
 import convertFiles from '@/utils/convertFiles';
 import mergeData from '@/utils/mergeData';
 import cleanData from '@/utils/cleanData';
+import formatData from '@/utils/formatData';
+import { format, parse } from 'date-fns';
+import filterObject from '@/utils/filterObject';
 
 export default function Home() {
   return (
@@ -98,25 +101,112 @@ export async function getStaticProps(context: GetStaticProps) {
   // https://download.bls.gov/pub/time.series/cu/cu.data.0.Current
 
   convertFiles([
-    { inputName: 'cu.data.2.Summaries.txt', outputName: 'summaries' },
+    { inputName: 'cu.data.2.Summaries.txt', outputName: 'summaries-converted' },
     { inputName: 'cu.period.txt', outputName: 'period' },
-    { inputName: 'cu.series.txt', outputName: 'series-converted' }
+    { inputName: 'cu.series.txt', outputName: 'series-converted' },
+    { inputName: 'cu.item.txt', outputName: 'item-converted' }
   ]);
 
-  cleanData({
-    inputFile: 'series-converted.json',
-    outputFile: 'series',
-    fields: ['series_id', 'item_code', 'series_title']
+  // Filters out everything but monthly values, filters out annual summary values
+  // M01-12=Monthly
+  // M13=Annual	Avg
+  // S01-03=Semi-Annually
+  filterObject({
+    inputFile: 'summaries-converted.json',
+    outputFile: 'summaries.json',
+    filterFunction: (value: any) =>
+      value.period !== 'M13' && value.period?.charAt(0) !== 'S'
   });
 
-  // mergeData({
-  //   outputFile: 'merged-data.json',
-  //   initialFile: 'summaries.json',
-  //   joinFiles: [
-  //     { source: 'series.json', joinProp: 'series_id' },
-  //     { source: 'period.json', joinProp: 'period' }
-  //   ]
-  // });
+  filterObject({
+    inputFile: 'summaries.json',
+    outputFile: 'summaries.json',
+    filterFunction: (value: any) => value.series_id !== 0
+  });
+
+  // Filters for US wide and seasonally adjusted data
+  filterObject({
+    inputFile: 'series-converted.json',
+    outputFile: 'series.json',
+    filterFunction: (value: any) => {
+      return (
+        // (value.area_code == '0000' || value.area_code == 0) &&
+        value.seasonal == 'S'
+      );
+    }
+  });
+
+  [
+    {
+      inputFile: 'item-converted.json',
+      outputFile: 'item.json',
+      fields: ['item_code', 'item_name']
+    },
+    {
+      inputFile: 'summaries.json',
+      outputFile: 'summaries.json',
+      fields: ['series_id', 'year', 'period', 'value']
+    },
+    {
+      inputFile: 'series.json',
+      outputFile: 'series.json',
+      fields: ['series_id', 'item_code', 'series_title', 'seasonal']
+    }
+  ].forEach((dataToClean) => cleanData(dataToClean));
+
+  mergeData({
+    outputFile: 'merged-data.json',
+    initialFile: 'summaries.json',
+    joinFile: [
+      { source: 'series.json', joinProp: 'series_id' },
+      { source: 'period.json', joinProp: 'period' }
+    ]
+  });
+
+  filterObject({
+    inputFile: 'merged-data.json',
+    outputFile: 'merged-data.json',
+    filterFunction: (value: any) => value.series_title
+  });
+
+  formatData({
+    inputFile: 'merged-data.json',
+    outputFile: 'merged-data.json',
+    fields: ['series_id', 'value', 'series_title', 'seasonal'],
+    format: {
+      date: (value: any) => {
+        // try {
+        //   format(
+        //     parse(
+        //       `${value['year']}-${value['period_name']}-01`,
+        //       'yyyy-MMMM-dd',
+        //       new Date()
+        //     ),
+        //     'yyyy-MM-dd'
+        //   );
+        // } catch (err) {
+        //   console.log('SHIT');
+        //   console.log(value);
+        //   console.log('SHIT');
+        // }
+
+        return (
+          value['period_name'] &&
+          value['year'] &&
+          format(
+            parse(
+              `${value['year']}-${value['period_name']}-01`,
+              'yyyy-MMMM-dd',
+              new Date()
+            ),
+            'yyyy-MM-dd'
+          )
+        );
+      }
+    }
+  });
+
+  // ----
 
   // const chartData = {
   //   outputFile: 'chartData.json',
